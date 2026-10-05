@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="es" data-theme-auto>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MiAlborada, prototipo navegable (versión 2)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%85%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --pg-bg:#E8EDF4; --pg-fg:#14233A; --pg-mute:#4E5F75;
+  /* La aplicación (dentro del teléfono) usa siempre su paleta clara */
+  --ink:#14233A; --muted:#55667C; --line:#D9E1EB; --bg:#F3F6FA; --surface:#FFFFFF;
+  --brand:#1E4FA0; --brand-soft:#E4ECF9; --on-brand:#FFFFFF;
+  --dawn:#F2A33A; --dawn-soft:#FFF0D3; --dawn-ink:#6A4100;
+  --ok:#1D704A; --ok-soft:#E1F3E9; --bad:#A92319; --bad-soft:#FBE8E5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --pg-bg:#0E1622; --pg-fg:#E7EDF5; --pg-mute:#9FB0C5; }
+}
+:root[data-theme="dark"]{ --pg-bg:#0E1622; --pg-fg:#E7EDF5; --pg-mute:#9FB0C5; }
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--pg-bg);color:var(--pg-fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
+#stage{min-height:100%;height:100%;display:flex;align-items:center;justify-content:center;gap:40px;padding:20px}
+#side{max-width:260px;line-height:1.5;font-size:15px}
+#side h2{font-size:20px;margin:0 0 8px}
+#side p{margin:0 0 10px;color:var(--pg-mute)}
+#side button{font:inherit;padding:10px 14px;border-radius:10px;border:1px solid var(--pg-mute);background:transparent;color:var(--pg-fg);cursor:pointer}
+#phone{position:relative;width:390px;height:min(844px,100%);background:var(--bg);color:var(--ink);border-radius:34px;border:9px solid #14233A;overflow:hidden;box-shadow:0 18px 50px rgba(8,20,40,.28);font-size:16px;line-height:1.4}
+@media (max-width:640px){
+  #stage{padding:0;gap:0}
+  #side{display:none}
+  #phone{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}
+}
+body.shot #stage{padding:0;gap:0;align-items:flex-start;justify-content:flex-start}
+body.shot #side{display:none}
+body.shot #phone{width:390px;height:844px;border:0;border-radius:0;box-shadow:none}
+
+/* ---------- aplicación ---------- */
+#view{position:absolute;inset:0;display:flex;flex-direction:column}
+button{font:inherit;color:inherit}
+svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.appbar{display:flex;align-items:center;gap:4px;min-height:60px;padding:0 8px 0 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.appbar.has-back{padding-left:4px}
+.appbar h1{flex:1;margin:0;font-size:20px;line-height:1.2;font-weight:700}
+.appbar .sub{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+.icon{position:relative;width:48px;height:48px;border:0;background:transparent;border-radius:24px;display:grid;place-items:center;cursor:pointer}
+.icon .dot{position:absolute;top:6px;right:5px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--dawn);color:#2A1900;font-size:13px;font-weight:700;display:grid;place-items:center}
+.content{flex:1;overflow-y:auto;padding:16px}
+.content.flush{padding:0}
+h2.sec{font-size:17px;margin:20px 0 8px;font-weight:700}
+h2.sec:first-child{margin-top:0}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+
+.hero{background:var(--brand);color:var(--on-brand);border-radius:16px;padding:16px 18px;text-align:left;border:0;width:100%;display:block;cursor:pointer}
+.hero .when{font-size:14px;opacity:.9}
+.hero .time{font-size:34px;font-weight:700;line-height:1.1;margin:4px 0 2px}
+.hero .what{font-size:18px;font-weight:600}
+.hero .where{font-size:15px;opacity:.92}
+
+.list{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 14px;border:0;border-bottom:1px solid var(--line);background:var(--surface);text-align:left;cursor:pointer}
+.row:last-child{border-bottom:0}
+.row .grow{flex:1;min-width:0}
+.row .t{font-weight:600;display:block}
+.row .s{font-size:14px;color:var(--muted);display:block}
+.row[disabled]{cursor:default}
+.row[disabled] .t{color:var(--muted)}
+.chev{color:var(--muted)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:flex;align-items:center;gap:10px;min-height:56px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);cursor:pointer;font-weight:600;text-align:left}
+.tile svg{color:var(--brand)}
+.badge{display:inline-block;font-size:13px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--brand-soft);color:var(--brand)}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--dawn-soft);color:var(--dawn-ink)}
+.badge.off{background:#E9EDF2;color:var(--muted)}
+
+.nav{display:flex;background:var(--surface);border-top:1px solid var(--line)}
+.nav button{flex:1;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:transparent;font-size:13px;color:var(--muted);cursor:pointer}
+.nav button[aria-current="page"]{color:var(--brand);font-weight:700}
+.nav button[aria-current="page"] svg{stroke-width:2.6}
+
+.days{display:flex;gap:6px;margin-bottom:14px}
+.days button{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:600;cursor:pointer}
+.days button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand);border-color:var(--brand)}
+.slot{display:flex;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:10px}
+.slot .h{width:92px;flex:none;font-size:14px;color:var(--muted)}
+.slot .n{font-weight:700}
+.stamp{margin-top:14px;font-size:14px;color:var(--muted)}
+
+.kv{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.kv:last-child{border-bottom:0}
+.grade{font-size:22px;font-weight:700}
+
+.bottombar{padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.btn{min-height:50px;border-radius:12px;border:1px solid transparent;font-weight:700;padding:0 16px;cursor:pointer;width:100%}
+.btn.primary{background:var(--brand);color:var(--on-brand)}
+.btn.secondary{background:var(--surface);border-color:var(--brand);color:var(--brand)}
+.btn.text{background:transparent;color:var(--brand)}
+.btn[disabled]{background:#D7DEE8;color:#6C7B90;border-color:transparent;cursor:not-allowed}
+.link{border:0;background:transparent;color:var(--brand);font-weight:700;min-height:44px;padding:0 8px;cursor:pointer}
+
+.opt{display:block;width:100%;text-align:left;padding:14px;margin-bottom:10px;background:var(--surface);border:2px solid var(--line);border-radius:14px;cursor:pointer}
+.opt[aria-checked="true"]{border-color:var(--brand);background:var(--brand-soft)}
+.opt .t{font-weight:700;display:block}
+.opt .s{display:block;font-size:15px;color:var(--ink)}
+.opt .q{display:block;font-size:14px;margin-top:4px;color:var(--muted)}
+.opt .q.low{color:var(--dawn-ink);font-weight:600}
+
+.scrim{position:absolute;inset:0;background:rgba(10,20,36,.5);display:flex;align-items:flex-end;z-index:5}
+.sheet{width:100%;background:var(--surface);border-radius:22px 22px 0 0;padding:20px 18px 18px;display:flex;flex-direction:column;gap:10px}
+.sheet h2{margin:0;font-size:20px}
+.sheet p{margin:0}
+.sheet .warn{background:var(--dawn-soft);color:var(--dawn-ink);border-radius:12px;padding:12px;font-size:15px}
+.toast{position:absolute;left:16px;right:16px;bottom:84px;background:#14233A;color:#fff;border-radius:12px;padding:13px 16px;z-index:6;font-size:15px}
+
+.okmark{width:72px;height:72px;border-radius:36px;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;margin:8px auto 12px}
+.okmark svg{width:38px;height:38px;stroke-width:2.6}
+.center{text-align:center}
+.prog{height:12px;border-radius:6px;background:#E3E9F1;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;background:var(--brand)}
+.item-new{border-left:5px solid var(--dawn)}
+
+
+.spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;margin-right:10px;vertical-align:-3px;animation:rot .8s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.btn.busy{background:var(--brand);color:#fff;opacity:.88;cursor:progress}
+.opt.off{border-style:dashed;background:transparent;cursor:default}
+.opt.off .t,.opt.off .s{color:var(--muted)}
+.notice{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--dawn-soft);color:var(--dawn-ink);font-size:15px}
+.grade.sm{font-size:18px}
+.okmark.bad{background:var(--bad-soft);color:var(--bad)}
+button:focus-visible{outline:3px solid #0B63CE;outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){ .scrim{animation:fade .15s ease-out} @keyframes fade{from{opacity:0}to{opacity:1}} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <aside id="side">
+    <h2>MiAlborada</h2>
+    <p>Prototipo navegable de media fidelidad (versión 2) del Instituto Universitario Alborada, caso simulado. Todos los datos son ficticios.</p>
+    <p>Toca las pantallas para navegar. Para empezar de nuevo, reinicia el prototipo.</p>
+    <button id="reset" type="button">Reiniciar prototipo</button>
+    <p style="margin-top:14px"><label><input id="sim" type="checkbox"> Simular una falla de conexión al confirmar la matrícula</label></p>
+  </aside>
+  <div id="phone"><div id="view"></div></div>
+</div>
+
+<script>
+const VER = 2;
+const I = {
+  home:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  grade:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M9 9h6M9 13h6"/></svg>',
+  enroll:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4v2h6V4M9 13l2 2 4-4"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg>',
+  back:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
+  check:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  alert:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>'
+};
+
+/* ---------- datos ficticios ---------- */
+const DIAS = ['', 'Lunes','Martes','Miércoles','Jueves','Viernes'];
+const DN = ['', 'lunes','martes','miércoles','jueves','viernes'];
+const HOR = {
+  1:[['8:00 a. m. a 10:00 a. m.','Estadística básica','Aula 204'],['10:00 a. m. a 12:00 m.','Fundamentos de administración','Aula 105']],
+  2:[['10:00 a. m. a 12:00 m.','Contabilidad I','Aula 301'],['2:00 p. m. a 4:00 p. m.','Expresión oral y escrita','Aula 210']],
+  5:[['8:00 a. m. a 12:00 m.','Ofimática','Laboratorio 2']]
+};
+HOR[3]=HOR[1]; HOR[4]=HOR[2];
+const NOTAS = [
+  {id:'est', n:'Estadística básica', p:[['Parcial 1','30 %','3,8','21 de septiembre'],['Parcial 2','30 %'],['Final','40 %']], acc:'1,14'},
+  {id:'adm', n:'Fundamentos de administración', p:[['Parcial 1','30 %','4,5','24 de septiembre'],['Parcial 2','30 %'],['Final','40 %']], acc:'1,35'},
+  {id:'con', n:'Contabilidad I', p:[['Parcial 1','30 %','4,2','28 de septiembre'],['Parcial 2','30 %'],['Final','40 %']], acc:'1,26'},
+  {id:'exp', n:'Expresión oral y escrita', p:[['Parcial 1','30 %'],['Parcial 2','30 %'],['Final','40 %']], acc:null},
+  {id:'ofi', n:'Ofimática', p:[['Parcial 1','30 %'],['Parcial 2','30 %'],['Final','40 %']], acc:null}
+];
+/* v2: el estudiante piensa por materia, así que cada materia reúne su horario y sus notas */
+const MIS = [
+  {id:'est', n:'Estadística básica', h:'Lunes y miércoles, 8:00 a. m. a 10:00 a. m.', hs:'Lun y mié, 8:00 a 10:00 a. m.', aula:'Aula 204', nota:'3,8'},
+  {id:'adm', n:'Fundamentos de administración', h:'Lunes y miércoles, 10:00 a. m. a 12:00 m.', hs:'Lun y mié, 10:00 a 12:00 m.', aula:'Aula 105', nota:'4,5'},
+  {id:'con', n:'Contabilidad I', h:'Martes y jueves, 10:00 a. m. a 12:00 m.', hs:'Mar y jue, 10:00 a 12:00 m.', aula:'Aula 301', nota:'4,2'},
+  {id:'exp', n:'Expresión oral y escrita', h:'Martes y jueves, 2:00 p. m. a 4:00 p. m.', hs:'Mar y jue, 2:00 a 4:00 p. m.', aula:'Aula 210', nota:null},
+  {id:'ofi', n:'Ofimática', h:'Viernes, 8:00 a. m. a 12:00 m.', hs:'Vie, 8:00 a 12:00 m.', aula:'Laboratorio 2', nota:null}
+];
+const MAT = [
+  {id:'con', n:'Contabilidad II', cr:3, g:[
+    {id:'A', dias:'Lunes y miércoles', d:[1,3], ini:9, fin:11, cupos:5},
+    {id:'B', dias:'Martes y jueves', d:[2,4], ini:14, fin:16, cupos:10}]},
+  {id:'est', n:'Estadística aplicada', cr:3, g:[
+    {id:'A', dias:'Lunes y miércoles', d:[1,3], ini:8, fin:10, cupos:12},
+    {id:'B', dias:'Martes y jueves', d:[2,4], ini:8, fin:10, cupos:7}]},
+  {id:'mer', n:'Mercadeo I', cr:3, estado:'sincupo', g:[{id:'A', dias:'Viernes', d:[5], ini:8, fin:11, cupos:0}]},
+  {id:'tal', n:'Gestión del talento humano', cr:2, g:[{id:'A', dias:'Viernes', d:[5], ini:8, fin:12, cupos:20}]},
+  {id:'inf', n:'Informática básica', cr:2, estado:'aprobada', g:[]}
+];
+
+/* ---------- estado ---------- */
+const FALLA = new URLSearchParams(location.search).get('falla')==='1';
+const S = {stack:['home'], dia:3, nota:null, mat:null, grp:null, sel:{}, toast:null, leidos:false, comp:null, busy:false, fallo:false, sim:FALLA};
+const $ = s => document.querySelector(s);
+const cur = () => S.stack[S.stack.length-1];
+const matById = id => MAT.find(m=>m.id===id);
+const hr = h => { const x = h>12?h-12:h; return x+':00 '+(h<12?'a. m.':(h===12?'m.':'p. m.')); };
+const rango = g => g.dias+', '+hr(g.ini)+' a '+hr(g.fin);
+const overlap = (a,b) => a.d.some(x=>b.d.includes(x)) && a.ini<b.fin && b.ini<a.fin;
+const lista = a => a.length<2 ? a.join('') : a.slice(0,-1).join(', ')+' y '+a[a.length-1];
+function solape(a,b){ const d=a.d.filter(x=>b.d.includes(x)).map(x=>DN[x]); return lista(d)+', de '+hr(Math.max(a.ini,b.ini))+' a '+hr(Math.min(a.fin,b.fin)); }
+function conflicto(mid, g){
+  for(const k of Object.keys(S.sel)){
+    if(k===mid) continue;
+    const m = matById(k), o = m.g.find(x=>x.id===S.sel[k]);
+    if(overlap(g,o)) return {m,o};
+  }
+  return null;
+}
+const creditos = () => Object.keys(S.sel).reduce((a,k)=>a+matById(k).cr,0);
+const nSel = () => Object.keys(S.sel).length;
+
+/* ---------- piezas ---------- */
+const bar = (t, back, sub, right='') =>
+  `<header class="appbar ${back?'has-back':''}">${back?`<button class="icon" data-back aria-label="Volver">${I.back}</button>`:''}<h1>${t}${sub?`<span class="sub">${sub}</span>`:''}</h1>${right}</header>`;
+const tabs = a => `<nav class="nav" aria-label="Secciones">`+
+  [['home','Inicio',I.home],['horario','Horario',I.cal],['notas','Notas',I.grade],['matricula','Matrícula',I.enroll]]
+  .map(([id,l,ic])=>`<button data-tab="${id}" ${a===id?'aria-current="page"':''}>${ic}<span>${l}</span></button>`).join('')+`</nav>`;
+const selList = () => Object.keys(S.sel).map(k=>{const m=matById(k),g=m.g.find(x=>x.id===S.sel[k]);return `<div class="row" style="cursor:default"><span class="grow"><span class="t">${m.n}, grupo ${g.id}</span><span class="s">${rango(g)}</span></span></div>`}).join('');
+
+/* ---------- pantallas ---------- */
+const SCR = {
+home(){
+  const n = S.leidos?0:2;
+  const bell = `<button class="icon" data-go="avisos" aria-label="Avisos${n?', '+n+' nuevos':''}">${I.bell}${n?`<span class="dot">${n}</span>`:''}</button>`;
+  return bar('MiAlborada',false,'Tecnología en gestión administrativa',bell)+
+  `<main class="content">
+    <button class="hero" data-tab="horario"><span class="when">Hoy, miércoles 7 de octubre</span><div class="time">10:00 a. m.</div><div class="what">Fundamentos de administración</div><div class="where">Aula 105, hasta las 12:00 m.</div></button>
+    <h2 class="sec">Mis materias</h2>
+    <div class="list">${MIS.map(m=>`<button class="row" data-nota="${m.id}" data-go="materiaDet"><span class="grow"><span class="t">${m.n}</span><span class="s">${m.hs}</span></span><span class="${m.nota?'grade sm':'muted small'}">${m.nota||'Sin nota'}</span>${I.chev}</button>`).join('')}</div>
+    <div class="list" style="margin-top:12px"><button class="row" data-go="avance"><span class="grow"><span class="t">Mi avance</span><span class="s">40 de 72 créditos aprobados</span></span>${I.chev}</button></div>
+  </main>`+tabs('home');
+},
+horario(){
+  const lista = HOR[S.dia]||[];
+  return bar('Horario',false,'Periodo 2026-2')+
+  `<main class="content">
+    <div class="days" role="group" aria-label="Día de la semana">${[1,2,3,4,5].map(d=>`<button data-dia="${d}" aria-pressed="${S.dia===d}" aria-label="${DIAS[d]}">${DIAS[d].slice(0,3)}</button>`).join('')}</div>
+    <h2 class="sec">${DIAS[S.dia]}</h2>
+    ${lista.map(([h,n,a])=>`<div class="slot"><div class="h">${h}</div><div><div class="n">${n}</div><div class="small muted">${a}</div></div></div>`).join('')}
+    <p class="stamp">Actualizado hoy a las 7:30 a. m.</p>
+  </main>`+tabs('horario');
+},
+notas(){
+  return bar('Notas',false,'Periodo 2026-2')+
+  `<main class="content"><div class="list">${NOTAS.map(x=>`<button class="row" data-nota="${x.id}" data-go="materiaDet"><span class="grow"><span class="t">${x.n}</span><span class="s">${x.acc?'Acumulado: '+x.acc+' de 5,0':'Sin notas publicadas'}</span></span>${I.chev}</button>`).join('')}</div></main>`+tabs('notas');
+},
+materiaDet(){
+  const x = NOTAS.find(n=>n.id===S.nota)||NOTAS[2], m = MIS.find(n=>n.id===S.nota)||MIS[2];
+  return bar(x.n,true,'Periodo 2026-2')+
+  `<main class="content"><h2 class="sec">Horario</h2>
+    <div class="list"><div class="kv" style="display:block"><div style="font-weight:600">${m.h}</div><div class="small muted">${m.aula}</div></div></div>
+    <h2 class="sec">Notas</h2>
+    <div class="list">${x.p.map(([n,pc,v,f])=>`<div class="kv"><div><div style="font-weight:600">${n}</div><div class="small muted">${pc}${v?', publicada el '+f:''}</div></div><div class="${v?'grade':'muted'}">${v||'Pendiente'}</div></div>`).join('')}</div>
+    <p class="stamp">${x.acc?'Acumulado hasta ahora: '+x.acc+' de 5,0':'Aún no hay notas publicadas para esta materia.'}</p></main>`;
+},
+matricula(){
+  const items = MAT.map(m=>{
+    const g = S.sel[m.id];
+    let sub, badge='', dis=false;
+    if(m.estado==='aprobada'){ sub='Ya la aprobaste'; badge='<span class="badge off">Aprobada</span>'; dis=true; }
+    else if(m.estado==='sincupo'){ sub='Sin cupos disponibles'; badge='<span class="badge off">Sin cupos</span>'; dis=true; }
+    else if(g){ sub=`${m.cr} créditos, grupo ${g} agregado`; badge='<span class="badge ok">Agregada</span>'; }
+    else sub=`${m.cr} créditos, ${m.g.length} ${m.g.length>1?'grupos':'grupo'}`;
+    return `<button class="row" ${dis?'disabled':`data-mat="${m.id}"`}><span class="grow"><span class="t">${m.n}</span><span class="s">${sub}</span></span>${badge}${dis?'':I.chev}</button>`;
+  }).join('');
+  const foot = nSel()? `<div class="bottombar"><button class="btn primary" data-go="resumen">Revisar matrícula (${nSel()} ${nSel()>1?'materias':'materia'}, ${creditos()} créditos)</button></div>` : '';
+  return bar('Matrícula 2027-1',false,'Elige tus materias')+`<main class="content"><div class="list">${items}</div></main>`+foot+(nSel()?'':tabs('matricula'));
+},
+grupo(){
+  const m = matById(S.mat);
+  const ya = Object.keys(S.sel).filter(k=>k!==m.id);
+  const yaBox = ya.length ? `<h2 class="sec">Tu horario hasta ahora</h2><div class="list">${ya.map(k=>{const mm=matById(k),g=mm.g.find(x=>x.id===S.sel[k]);return `<div class="kv" style="display:block"><div style="font-weight:600">${mm.n}, grupo ${g.id}</div><div class="small muted">${rango(g)}</div></div>`}).join('')}</div>` : '';
+  const cf = m.g.map(g=>conflicto(m.id,g));
+  const aviso = cf.some(c=>c) ? `<p class="notice">Los grupos que se cruzan con tu horario no se pueden agregar.</p>` : '';
+  const opts = m.g.map((g,i)=>{
+    const c = cf[i];
+    if(c) return `<div class="opt off" aria-disabled="true"><span class="t">Grupo ${g.id} <span class="badge warn">Se cruza</span></span><span class="s">${rango(g)}</span><span class="q low">Se cruza con ${c.m.n}, grupo ${c.o.id}: ${solape(g,c.o)}</span></div>`;
+    return `<button class="opt" role="radio" aria-checked="${S.grp===g.id}" data-grp="${g.id}"><span class="t">Grupo ${g.id}</span><span class="s">${rango(g)}</span><span class="q ${g.cupos<=5?'low':''}">${g.cupos<=5?'Quedan '+g.cupos+' cupos':g.cupos+' cupos disponibles'}</span></button>`;
+  }).join('');
+  return bar(m.n,true,m.cr+' créditos')+
+  `<main class="content">${yaBox}<h2 class="sec">Elige un grupo</h2>${aviso}<div role="radiogroup" aria-label="Grupos">${opts}</div></main>
+   <div class="bottombar"><button class="btn primary" data-act="agregar" ${S.grp?'':'disabled'}>Agregar a mi matrícula</button></div>`;
+},
+resumen(){
+  const ks = Object.keys(S.sel);
+  return bar('Revisa tu matrícula',true,'Periodo 2027-1')+
+  `<main class="content"><div class="list">${ks.map(k=>{const m=matById(k),g=m.g.find(x=>x.id===S.sel[k]);return `<div class="row" style="cursor:default"><span class="grow"><span class="t">${m.n}, grupo ${g.id}</span><span class="s">${rango(g)}</span></span><button class="link" data-quitar="${k}" aria-label="Quitar ${m.n}">Quitar</button></div>`}).join('')}</div>
+   <p class="stamp">Créditos: ${creditos()} de 18 permitidos</p></main>
+   <div class="bottombar"><button class="btn primary ${S.busy?'busy':''}" data-act="confirmar" ${S.busy?'aria-busy="true"':(ks.length?'':'disabled')}>${S.busy?'<span class="spin" aria-hidden="true"></span>Confirmando…':'Confirmar matrícula'}</button><button class="btn secondary" data-back>Seguir agregando</button></div>`;
+},
+error(){
+  return bar('Matrícula',false,'Periodo 2027-1')+
+  `<main class="content center"><div class="okmark bad">${I.alert}</div><h2 style="margin:0 0 6px;font-size:22px">No pudimos confirmar tu matrícula</h2><p class="muted" style="margin:0 0 16px">Hubo un problema de conexión. Tu selección sigue guardada: no tienes que volver a elegir.</p>
+   <div class="list" style="text-align:left">${selList()}</div></main>
+   <div class="bottombar"><button class="btn primary ${S.busy?'busy':''}" data-act="reintentar" ${S.busy?'aria-busy="true"':''}>${S.busy?'<span class="spin" aria-hidden="true"></span>Reintentando…':'Reintentar'}</button><button class="btn secondary" data-act="volverSel">Volver a mi selección</button></div>`;
+},
+confirmada(){
+  return bar('Matrícula registrada',false,'Periodo 2027-1')+
+  `<main class="content center"><div class="okmark">${I.check}</div><h2 style="margin:0 0 4px;font-size:22px">Tu matrícula quedó registrada</h2><p class="muted" style="margin:0 0 16px">Comprobante ${S.comp||'2027-1-04812'}</p>
+   <div class="list" style="text-align:left">${selList()}</div></main>
+   <div class="bottombar"><button class="btn primary" data-act="descargar">Descargar comprobante</button><button class="btn secondary" data-act="inicio">Volver al inicio</button></div>`;
+},
+avance(){
+  return bar('Mi avance',true,'Tecnología en gestión administrativa')+
+  `<main class="content"><div class="list"><div class="kv" style="display:block"><div class="t" style="font-weight:700">40 de 72 créditos aprobados</div><div class="prog" role="img" aria-label="56 por ciento"><i style="width:56%"></i></div><div class="small muted">56 % de la carrera</div></div></div>
+   <h2 class="sec">En curso, periodo 2026-2</h2>
+   <div class="list"><div class="kv"><span>5 materias</span><span class="muted">14 créditos</span></div></div>
+   <h2 class="sec">Siguientes materias</h2>
+   <div class="list"><div class="kv"><span>Contabilidad II</span><span class="muted">3 créditos</span></div><div class="kv"><span>Estadística aplicada</span><span class="muted">3 créditos</span></div><div class="kv"><span>Mercadeo I</span><span class="muted">3 créditos</span></div><div class="kv"><span>Gestión del talento humano</span><span class="muted">2 créditos</span></div></div></main>`;
+},
+avisos(){
+  return bar('Avisos',true)+
+  `<main class="content"><div class="list">
+    <button class="row item-new" data-nota="con" data-go="materiaDet"><span class="grow"><span class="t">Nueva nota publicada</span><span class="s">Contabilidad I, parcial 1. Hace 9 días</span></span>${I.chev}</button>
+    <button class="row item-new" data-nota="con" data-go="materiaDet"><span class="grow"><span class="t">Fecha importante</span><span class="s">Contabilidad I: parcial 2 el 19 de octubre</span></span>${I.chev}</button>
+    <button class="row" data-tab="matricula"><span class="grow"><span class="t">Matrícula 2027-1</span><span class="s">Abre el 9 de noviembre</span></span>${I.chev}</button>
+  </div></main>`;
+}
+};
+
+/* ---------- render y eventos ---------- */
+function render(){
+  $('#view').innerHTML = SCR[cur()]();
+  const ph = $('#phone');
+  ph.querySelectorAll('.toast').forEach(e=>e.remove());
+  if(S.toast){ ph.insertAdjacentHTML('beforeend',`<div class="toast" role="status">${S.toast}</div>`); }
+}
+function go(id){ S.stack.push(id); S.toast=null; if(id==='avisos') S.leidos=true; render(); }
+function tab(id){ S.stack=[id]; S.toast=null; render(); }
+function back(){ if(S.stack.length>1) S.stack.pop(); S.toast=null; render(); }
+function say(t){ S.toast=t; render(); clearTimeout(say.t); say.t=setTimeout(()=>{S.toast=null; render();},2600); }
+function confirmar(){
+  if(S.busy) return;
+  S.busy=true; render();
+  setTimeout(()=>{
+    S.busy=false;
+    if(S.sim && !S.fallo){ S.fallo=true; S.stack=['matricula','resumen','error']; }
+    else { S.comp='2027-1-04812'; S.stack=['confirmada']; }
+    render();
+  }, 1100);
+}
+$('#phone').addEventListener('click', e=>{
+  const t = e.target.closest('button'); if(!t) return;
+  if(t.dataset.dia){ S.dia=+t.dataset.dia; return render(); }
+  if(t.dataset.nota) S.nota=t.dataset.nota;
+  if(t.dataset.mat){ S.mat=t.dataset.mat; S.grp=S.sel[S.mat]||null; return go('grupo'); }
+  if(t.dataset.grp){ S.grp=t.dataset.grp; return render(); }
+  if(t.dataset.quitar){ delete S.sel[t.dataset.quitar]; if(!nSel()) { S.stack.pop(); } return render(); }
+  if(t.dataset.tab) return tab(t.dataset.tab);
+  if(t.dataset.go) return go(t.dataset.go);
+  if(t.hasAttribute('data-back')) return back();
+  const a = t.dataset.act;
+  if(a==='agregar'){
+    const m = matById(S.mat), g = m.g.find(x=>x.id===S.grp);
+    if(conflicto(m.id,g)) return;
+    S.sel[m.id]=g.id; S.stack.pop(); return say(`${m.n}, grupo ${g.id}, agregada`);
+  }
+  if(a==='confirmar' || a==='reintentar') return confirmar();
+  if(a==='volverSel'){ S.stack=['matricula','resumen']; return render(); }
+  if(a==='descargar') return say('Comprobante guardado en tus descargas');
+  if(a==='inicio'){ S.sel={}; return tab('home'); }
+});
+$('#reset').addEventListener('click', ()=>{ Object.assign(S,{stack:['home'],dia:3,nota:null,mat:null,grp:null,sel:{},toast:null,leidos:false,comp:null,busy:false,fallo:false}); render(); });
+$('#sim').checked = FALLA;
+$('#sim').addEventListener('change', e=>{ S.sim=e.target.checked; S.fallo=false; });
+
+/* ---------- estados de demostración (para capturas y pruebas) ---------- */
+window.demo = function(n){
+  Object.assign(S,{stack:['home'],dia:3,nota:null,mat:null,grp:null,sel:{},toast:null,leidos:false,comp:null,busy:false,fallo:false});
+  if(n==='horario') S.stack=['horario'];
+  if(n==='notas') S.stack=['notas'];
+  if(n==='materia'){ S.nota='con'; S.stack=['notas','materiaDet']; }
+  if(n==='matricula') S.stack=['matricula'];
+  if(n==='grupo'){ S.mat='con'; S.grp='A'; S.stack=['matricula','grupo']; }
+  if(n==='cruce'){ S.sel={con:'A'}; S.mat='est'; S.grp='B'; S.stack=['matricula','grupo']; }
+  if(n==='resumen'){ S.sel={con:'A',est:'B'}; S.stack=['matricula','resumen']; }
+  if(n==='confirmando'){ S.sel={con:'A',est:'B'}; S.busy=true; S.stack=['matricula','resumen']; }
+  if(n==='error'){ S.sel={con:'A',est:'B'}; S.stack=['matricula','resumen','error']; }
+  if(n==='confirmada'){ S.sel={con:'A',est:'B'}; S.comp='2027-1-04812'; S.stack=['confirmada']; }
+  if(n==='avance') S.stack=['home','avance'];
+  if(n==='avisos'){ S.stack=['home','avisos']; S.leidos=true; }
+  render();
+};
+const q = new URLSearchParams(location.search);
+if(q.get('shot')) document.body.classList.add('shot');
+render();
+if(q.get('demo')) demo(q.get('demo'));
+</script>
+</body>
+</html>
